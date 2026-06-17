@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # ── PostgreSQL 數據庫 ──────────────────
+  postgres:
+    image: postgres:15
+    container_name: postgres-container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin1234
+      POSTGRES_DB: bootcamp_xxxx          # 改成你的數據庫名稱
+      PGDATA: /var/lib/postgresql/data/pgdata
+    networks:
+      - bootcamp-network
+    ports:
+      - "5532:5432"                       # 本地 5532 → 容器 5432
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data/pgdata
+
+  # ── Redis 快取 ──────────────────────────
+  redis:
+    image: redis:7
+    container_name: redis-container
+    networks:
+      - bootcamp-network
+    ports:
+      - "6479:6379"                       # 本地 6479 → 容器 6379
+    volumes:
+      - ./redis_data:/data
+
+  # ── Spring Boot App 1：data-provider ──
+  # 開發階段先用 localhost 直接運行，以下3個 app 等準備好再取消註釋
+
+  # data-provider-app:
+  #   build:
+  #     context: ./project-data-provider
+  #     dockerfile: Dockerfile
+  #   container_name: data-provider-app
+  #   networks:
+  #     - bootcamp-network
+  #   ports:
+  #     - "8101:8101"
+  #   depends_on:
+  #     - postgres
+  #     - redis
+
+  # stock-data-app:
+  #   build:
+  #     context: ./project-stock-data
+  #     dockerfile: Dockerfile
+  #   container_name: stock-data-app
+  #   networks:
+  #     - bootcamp-network
+  #   ports:
+  #     - "8102:8102"
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #     - data-provider-app
+
+  # heatmap-ui-app:
+  #   build:
+  #     context: ./project-heatmap-ui
+  #     dockerfile: Dockerfile
+  #   container_name: heatmap-ui-app
+  #   networks:
+  #     - bootcamp-network
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     - stock-data-app
+
+networks:
+  bootcamp-network:
+    driver: bridge

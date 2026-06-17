@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Heatmap</title>
+    <link rel="stylesheet" th:href="@{/css/heatmap.css}">
+</head>
+<body>
+    <h1>📊 S&P 500 Stock Heatmap</h1>
+    <div id="heatmap-container"></div>
+
+    <!-- 引入 D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- 引入熱圖 JS 庫（如 d3-treemap）-->
+    <script th:src="@{/js/heatmap.js}"></script>
+</body>
+</html>

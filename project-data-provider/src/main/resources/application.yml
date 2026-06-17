@@ -1,0 +1,7 @@
+server:
+  port: 8101
+
+finnhub:
+  api:
+    key: d8no781r01qvvn99kr5gd8no781r01qvvn99kr60
+    base-url: https://finnhub.io/api/v1

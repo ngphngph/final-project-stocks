@@ -1,0 +1,5 @@
+server:
+  port: 8080
+
+stock-data:
+  base-url: http://localhost:8102   # stock-data-app 地址
