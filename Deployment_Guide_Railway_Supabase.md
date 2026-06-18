@@ -42,17 +42,24 @@
 ## Step 1：Supabase 建立 Postgres
 
 1. 到 supabase.com 註冊 → New Project → 設定密碼（記下來）
-2. 專案建好後，進 **Project Settings → Database**，找到 **Connection string**，選 **URI** 格式，會長得像：
+2. 專案建好後，點頁面上方的綠色 **Connect** 按鈕（在 `main` / `PRODUCTION` 旁邊，新版 UI 已經把連線字串移到這裡，不在 Project Settings → Database 了）
+3. 選 **URI** 分頁，會看到類似這樣的連線字串：
    ```
    postgresql://postgres:[YOUR-PASSWORD]@db.xxxxxxxxxxxx.supabase.co:5432/postgres
    ```
-3. 把它轉成 Spring Boot 的 JDBC 格式（開頭多加 `jdbc:`，結尾加 `?sslmode=require`，Supabase 強制要求 SSL）：
-   ```
-   jdbc:postgresql://db.xxxxxxxxxxxx.supabase.co:5432/postgres?sslmode=require
-   ```
-   這串就是之後要填到 Railway 的 `DATABASE_URL` 環境變數。
+   注意密碼部分可能已經是 **URL-encoded**（例如 `%` 變成 `%25`、`/` 變成 `%2F`、`&` 變成 `%26`）。
 
-> 注意：Supabase 預設資料庫名稱是 `postgres`，不是你本機用的 `bootcamp_xxxx`，沒關係，表會自動建在這個 db 裡。
+4. Railway 的環境變數要拆成 3 個獨立的值（不是整串 URI），所以：
+   - `DATABASE_URL`（拿 URI 裡 `@` 後面那段，轉成 JDBC 格式，開頭加 `jdbc:`、結尾加 `?sslmode=require`）：
+     ```
+     jdbc:postgresql://db.xxxxxxxxxxxx.supabase.co:5432/postgres?sslmode=require
+     ```
+   - `DATABASE_USERNAME`：`postgres`
+   - `DATABASE_PASSWORD`：把密碼**還原成原始字元**再填（因為這是獨立欄位，不是塞進 URI 字串裡，不需要 URL-encode）。例如 URI 裡看到 `tJeDNPb%25%2Fjkj%2F7%26`，還原後填 `tJeDNPb%/jkj/7&`。
+
+> 注意：Supabase 預設資料庫名稱是 `postgres`，不是你本機用的 `bootcamp_stockwatch`，沒關係，表會自動建在這個 db 裡。
+
+> ⚠️ 真實密碼只能填在 Railway 的 Variables 介面裡，絕對不要寫進 `application.yml` 或任何會 commit 進 git 的檔案。
 
 ---
 
