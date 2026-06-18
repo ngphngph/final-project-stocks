@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: admin1234
-      POSTGRES_DB: bootcamp_xxxx          # 改成你的數據庫名稱
+      POSTGRES_DB: bootcamp_stockwatch
       PGDATA: /var/lib/postgresql/data/pgdata
     networks:
       - bootcamp-network

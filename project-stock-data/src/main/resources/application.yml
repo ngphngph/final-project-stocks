@@ -1,11 +1,11 @@
 server:
-  port: 8102
+  port: ${PORT:8102}
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5532/bootcamp_xxxx    # port 5532 對應 docker-compose
-    username: postgres
-    password: admin1234
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5532/bootcamp_stockwatch}    # 本機用 docker-compose；雲端用 Supabase 連線字串
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:admin1234}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -18,8 +18,9 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 6479             # port 6479 對應 docker-compose
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6479}
+      password: ${REDIS_PASSWORD:}    # 本機 Redis 沒密碼就留空；Railway Redis 會給密碼
 
 data-provider:
-  base-url: http://localhost:8101   # data-provider-app 的地址
+  base-url: ${DATA_PROVIDER_BASE_URL:http://localhost:8101}   # 本機 localhost；雲端用 Railway 內部網址
