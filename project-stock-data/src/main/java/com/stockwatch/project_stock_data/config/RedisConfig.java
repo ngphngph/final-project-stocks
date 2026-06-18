@@ -22,7 +22,7 @@ public class RedisConfig {
                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new GenericJacksonJsonRedisSerializer()))
+                        .fromSerializer(GenericJacksonJsonRedisSerializer.builder().build()))
                 .entryTtl(Duration.ofMinutes(30));  // 30分鐘失效
 
         return RedisCacheManager.builder(factory)
