@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -34,6 +35,12 @@ public class StockDataService {
                 .toList();
     }
 
+    // 加 @Transactional 是因為 stock.getStockProfile() 是 LAZY @OneToOne，
+    // findById/findBySymbol 本身的 transaction 結束後 session 就關了，
+    // 之後才存取 getStockProfile() 會丟 LazyInitializationException，
+    // 在 controller 端變成沒被攔截的 500（前端顯示「Failed to load stock data.」）。
+    // 把整個方法包進同一個 transaction，讓 lazy load 能在 session 還開著時完成。
+    @Transactional(readOnly = true)
     @Cacheable(value = "stock-detail", key = "#symbol")
     public StockDetailDTO getStockDetail(String symbol) {
         Stock stock = stockRepository.findBySymbol(symbol)
@@ -41,6 +48,7 @@ public class StockDataService {
         return toStockDetailDTO(stock);
     }
 
+    @Transactional(readOnly = true)
     @Cacheable(value = "stock-detail-by-id", key = "#stockId")
     public StockDetailDTO getStockDetailById(Long stockId) {
         Stock stock = stockRepository.findById(stockId)
