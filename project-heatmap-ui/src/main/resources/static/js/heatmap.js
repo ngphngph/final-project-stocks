@@ -52,7 +52,18 @@ async function loadHeatmap() {
             return '#7f8c8d';                     // 平盤 → 灰色
         });
 
-    cells.append('text')
+    // 用 clipPath 把文字限制在自己的格子範圍內，避免格子太小時文字溢出、
+    // 跟隔壁格子的文字疊在一起
+    cells.append('clipPath')
+        .attr('id', d => `clip-${d.data.stockId}`)
+        .append('rect')
+        .attr('width', d => Math.max(0, d.x1 - d.x0))
+        .attr('height', d => Math.max(0, d.y1 - d.y0));
+
+    // 股票代號：格子太小（小於 30x22）就不顯示，避免擠成一團
+    cells.filter(d => (d.x1 - d.x0) >= 30 && (d.y1 - d.y0) >= 22)
+        .append('text')
+        .attr('clip-path', d => `url(#clip-${d.data.stockId})`)
         .attr('x', d => (d.x1 - d.x0) / 2)
         .attr('y', d => (d.y1 - d.y0) / 2 - 6)
         .attr('text-anchor', 'middle')
@@ -61,7 +72,10 @@ async function loadHeatmap() {
         .attr('font-weight', 'bold')
         .text(d => d.data.name);
 
-    cells.append('text')
+    // 漲跌幅：格子要更大一點（兩行文字需要更多高度）才顯示
+    cells.filter(d => (d.x1 - d.x0) >= 36 && (d.y1 - d.y0) >= 34)
+        .append('text')
+        .attr('clip-path', d => `url(#clip-${d.data.stockId})`)
         .attr('x', d => (d.x1 - d.x0) / 2)
         .attr('y', d => (d.y1 - d.y0) / 2 + 10)
         .attr('text-anchor', 'middle')
