@@ -1,12 +1,17 @@
 package com.stockwatch.project_heatmap_ui.controller;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class HeatmapController {
@@ -36,21 +41,36 @@ public class HeatmapController {
     class ApiController {
 
         @GetMapping("/heatmap")
-        public Object getHeatmap() {
-            return webClient.get()
-                    .uri(stockDataBaseUrl + "/data/heatmap")
-                    .retrieve()
-                    .bodyToMono(Object.class)
-                    .block();
+        public ResponseEntity<Object> getHeatmap() {
+            return proxyGet(stockDataBaseUrl + "/data/heatmap");
         }
 
         @GetMapping("/ohlc")
-        public Object getOhlc(@RequestParam Long id) {
-            return webClient.get()
-                    .uri(stockDataBaseUrl + "/data/ohlc?id=" + id)
-                    .retrieve()
-                    .bodyToMono(Object.class)
-                    .block();
+        public ResponseEntity<Object> getOhlc(@RequestParam Long id) {
+            return proxyGet(stockDataBaseUrl + "/data/ohlc?id=" + id);
+        }
+
+        // 把下游 project-stock-data 回傳的真實狀態碼跟錯誤內容原封不動轉給前端，
+        // 不要讓 WebClientResponseException 被吞掉變成沒有內容的泛用 500，
+        // 這樣前端 / 直接開瀏覽器看這個 API 網址時就能看到真正的錯誤訊息方便除錯。
+        private ResponseEntity<Object> proxyGet(String uri) {
+            try {
+                Object body = webClient.get()
+                        .uri(uri)
+                        .retrieve()
+                        .bodyToMono(Object.class)
+                        .block();
+                return ResponseEntity.ok(body);
+            } catch (WebClientResponseException ex) {
+                HttpStatusCode status = ex.getStatusCode();
+                String responseBody = ex.getResponseBodyAsString();
+                log.error("Downstream call to {} failed: status={}, body={}", uri, status, responseBody, ex);
+                return ResponseEntity.status(status).body(responseBody);
+            } catch (Exception ex) {
+                log.error("Downstream call to {} failed unexpectedly", uri, ex);
+                return ResponseEntity.internalServerError()
+                        .body("Proxy error calling " + uri + ": " + ex.getMessage());
+            }
         }
     }
 }
