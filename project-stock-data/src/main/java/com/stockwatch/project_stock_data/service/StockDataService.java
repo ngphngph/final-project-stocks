@@ -9,6 +9,7 @@ import com.stockwatch.project_stock_data.repository.StockOhlcRepository;
 import com.stockwatch.project_stock_data.repository.StockProfileRepository;
 import com.stockwatch.project_stock_data.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StockDataService {
@@ -90,7 +92,9 @@ public class StockDataService {
                 dto.setMarketPriceChgPct(toDouble(quote.get("dp")));
             }
         } catch (Exception e) {
-            // data-provider 暫時不可用或該 symbol 查無報價，跳過不影響其他股票渲染
+            // 暫時加上錯誤 log 以診斷為何 price 一直是 null
+            log.warn("enrichWithLiveQuote failed for symbol={}, url={}, error={}: {}",
+                    dto.getSymbol(), dataProviderBaseUrl, e.getClass().getSimpleName(), e.getMessage());
         }
     }
 

@@ -150,15 +150,21 @@ Railway 通常會自動部署，但建議的「第一次成功啟動」順序：
 
 ## Step 7：對 Supabase 跑 Python ETL
 
-本機跑 notebook 時，把連線字串從本機 docker 的 `bootcamp_xxxx` 換成 Supabase：
+✅ 這一步已經改好了，不用再手動編輯連線字串。兩個 notebook（`_1_load_snp500_symbol.ipynb`、`_2_load_ohlcv_data.ipynb`）的連線 cell 已經改成：
 
 ```python
+from getpass import getpass
+import urllib.parse
+
+db_password = getpass("Supabase 資料庫密碼: ")  # 輸入時不會顯示在畫面上，也不會存進這個檔案
 engine = create_engine(
-    "postgresql://postgres:<你的Supabase密碼>@db.xxxxxxxxxxxx.supabase.co:5432/postgres?sslmode=require"
+    f"postgresql://postgres:{urllib.parse.quote_plus(db_password)}@db.qhbtmzzltgimlcmrnzye.supabase.co:5432/postgres?sslmode=require"
 )
 ```
 
-兩個 notebook（`_1_load_snp500_symbol.ipynb`、`_2_load_ohlcv_data.ipynb`）都要改這一行，跑完資料就會直接進 Supabase，雲端上的 `stock-data` 服務馬上就能讀到。
+直接在 Jupyter 執行這個 cell，跳出輸入框時貼上你的 Supabase 資料庫密碼即可（不用自己做 URL encode，特殊字元會自動處理）。之所以用互動輸入而不是寫死密碼，是因為這兩個檔案會被 git 追蹤、push 上公開的 GitHub repo，寫死密碼會洩漏。
+
+跑完之後資料就會直接進 Supabase，雲端上的 `stock-data` 服務馬上就能讀到。
 
 ---
 
