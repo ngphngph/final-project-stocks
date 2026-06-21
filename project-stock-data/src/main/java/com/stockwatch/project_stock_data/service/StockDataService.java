@@ -94,6 +94,7 @@ public class StockDataService {
         dto.setSymbol(profile.getStock().getSymbol());
         dto.setName(profile.getCompanyName());
         dto.setIndustry(profile.getIndustry());
+        dto.setSector(SectorMapper.mapSector(profile.getIndustry()));
         dto.setMarketCap(profile.getMarketCap());
         dto.setShareOutstanding(profile.getShareOutstanding());
         dto.setLogo(profile.getLogo());

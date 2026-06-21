@@ -16,6 +16,7 @@ public class HeatmapItemDTO {
     private Double marketPriceChgPct;   // 漲跌幅 %
     private Double marketCap;
     private String industry;
+    private String sector;
     private String ipoDate;
     private String webUrl;
     private Double shareOutstanding;
