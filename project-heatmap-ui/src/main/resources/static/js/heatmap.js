@@ -3,9 +3,10 @@
 const FONT_MONO = "'JetBrains Mono', monospace";
 
 // 漲跌幅 -3% ~ +3% 對應連續色階（超過範圍會被夾住），比固定幾段顏色更細膩
+// 改成 Cyberpunk 配色：跌 → 霓虹洋紅紅、平盤 → 深紫黑、漲 → 霓虹綠
 const colorScale = d3.scaleLinear()
     .domain([-3, 0, 3])
-    .range(['#ff4d4d', '#3a3f44', '#00e676'])
+    .range(['#ff2155', '#1a1626', '#0aff9d'])
     .clamp(true);
 
 async function loadHeatmap() {
@@ -68,21 +69,23 @@ async function loadHeatmap() {
             g.append('rect')
                 .attr('width', d => Math.max(0, d.x1 - d.x0))
                 .attr('height', 16)
-                .attr('fill', '#04080d');
+                .attr('fill', '#13001a');
 
             g.append('rect')
                 .attr('width', d => Math.max(0, d.x1 - d.x0))
-                .attr('height', 1)
+                .attr('height', 1.5)
                 .attr('y', 16)
-                .attr('fill', 'rgba(0, 229, 255, 0.4)');
+                .attr('fill', '#ff2bd6')
+                .style('filter', 'drop-shadow(0 0 4px rgba(255, 43, 214, 0.85))');
 
             g.append('text')
                 .attr('x', 4)
                 .attr('y', 12)
-                .attr('fill', '#00e5ff')
+                .attr('fill', '#ff6be8')
                 .attr('font-size', '12px')
                 .attr('font-weight', '700')
                 .attr('letter-spacing', '0.5px')
+                .style('filter', 'drop-shadow(0 0 3px rgba(255, 43, 214, 0.9))')
                 .text(d => d.data.name.toUpperCase());
         });
 
@@ -102,13 +105,14 @@ async function loadHeatmap() {
             labeled.append('rect')
                 .attr('width', d => Math.max(0, d.x1 - d.x0))
                 .attr('height', 13)
-                .attr('fill', '#0c1117');
+                .attr('fill', '#001a1a');
 
             labeled.append('text')
                 .attr('x', 3)
                 .attr('y', 10)
-                .attr('fill', '#7fb3c7')
+                .attr('fill', '#5df5ec')
                 .attr('font-size', '9px')
+                .style('filter', 'drop-shadow(0 0 2px rgba(0, 255, 242, 0.7))')
                 .text(d => d.data.name.toUpperCase());
         });
 
@@ -127,8 +131,8 @@ async function loadHeatmap() {
     cells.append('rect')
         .attr('width', d => Math.max(0, d.x1 - d.x0))
         .attr('height', d => Math.max(0, d.y1 - d.y0))
-        .attr('fill', d => (d.data.changePct == null ? '#3a3f44' : colorScale(d.data.changePct)))
-        .attr('stroke', '#04080d')
+        .attr('fill', d => (d.data.changePct == null ? '#1a1626' : colorScale(d.data.changePct)))
+        .attr('stroke', '#0a0014')
         .attr('stroke-width', 0.6);
 
     // 用 clipPath 把文字限制在自己的格子範圍內，避免格子太小時文字溢出、
