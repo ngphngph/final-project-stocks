@@ -1,15 +1,63 @@
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
-    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
-    background: #111;
-    color: #eee;
+    font-family: 'JetBrains Mono', 'Segoe UI', monospace;
+    background-color: #060a10;
+    background-image:
+        linear-gradient(rgba(0, 229, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: #d6e4ec;
+}
+
+#app-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 18px;
+    padding: 18px 0 10px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.25);
+    flex-wrap: wrap;
 }
 
 h1 {
-    text-align: center;
-    padding: 16px 0 8px;
     margin: 0;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
     font-size: 22px;
+    letter-spacing: 2px;
+    color: #00e5ff;
+    text-shadow: 0 0 8px rgba(0, 229, 255, 0.55), 0 0 18px rgba(0, 229, 255, 0.25);
+}
+
+#status-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #6fe3a3;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #2ecc71;
+    box-shadow: 0 0 6px #2ecc71;
+    animation: pulse 1.6s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+#last-updated {
+    color: #5b7282;
 }
 
 #heatmap-container {
@@ -25,9 +73,10 @@ h1 {
 .back-link {
     display: inline-block;
     margin: 12px 16px;
-    color: #4dabf7;
+    color: #00e5ff;
     text-decoration: none;
     font-size: 14px;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .back-link:hover {
@@ -37,6 +86,7 @@ h1 {
 #stock-info {
     text-align: center;
     margin-bottom: 12px;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 #chart-container {

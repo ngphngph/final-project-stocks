@@ -1,4 +1,13 @@
-// 取得熱圖數據並渲染（Sector > Industry > Stock 三層，仿 Finviz 的分類版面）
+// 取得熱圖數據並渲染（Sector > Industry > Stock 三層，仿 Finviz 的分類版面，
+// 數值越大的產業/個股排在左上、越小的往右下排列）
+const FONT_MONO = "'JetBrains Mono', monospace";
+
+// 漲跌幅 -3% ~ +3% 對應連續色階（超過範圍會被夾住），比固定幾段顏色更細膩
+const colorScale = d3.scaleLinear()
+    .domain([-3, 0, 3])
+    .range(['#ff4d4d', '#3a3f44', '#00e676'])
+    .clamp(true);
+
 async function loadHeatmap() {
     const response = await fetch('/api/heatmap');
     const stocks = await response.json();
@@ -23,15 +32,19 @@ async function loadHeatmap() {
                 }))
             }))
         }))
-    }).sum(d => d.value);
+    })
+        .sum(d => d.value)
+        // 按 value 從大到小排序，讓大產業/大公司排在左上、小的往右下，跟 Finviz 一致
+        .sort((a, b) => b.value - a.value);
 
     // depth 0 = root, depth 1 = sector, depth 2 = industry, depth 3 = stock（leaf）
-    // paddingTop 在 sector / industry 的格子裡留出空間放分類標籤
+    // paddingTop 在 sector / industry 的格子裡留出空間放分類標籤色塊；
+    // paddingOuter 縮小、不再畫外框，讓格子之間更貼緊，接近 Finviz 的無縫排列
     d3.treemap()
         .tile(d3.treemapResquarify)
         .size([width, height])
-        .paddingOuter(d => (d.depth === 1 ? 4 : 2))
-        .paddingTop(d => (d.depth === 1 ? 20 : d.depth === 2 ? 15 : 0))
+        .paddingOuter(d => (d.depth === 1 ? 2 : 1))
+        .paddingTop(d => (d.depth === 1 ? 17 : d.depth === 2 ? 14 : 0))
         .paddingInner(1)
         .round(true)
         (root);
@@ -39,9 +52,10 @@ async function loadHeatmap() {
     const svg = d3.select('#heatmap-container')
         .append('svg')
         .attr('width', width)
-        .attr('height', height);
+        .attr('height', height)
+        .style('font-family', FONT_MONO);
 
-    // --- 第一層：Sector 外框 + 標籤（仿 Finviz 左上角大分類字樣）---
+    // --- 第一層：Sector 標籤（頂部色塊 + 細霓虹底線，不另外畫外框）---
     const sectorNodes = root.descendants().filter(d => d.depth === 1);
 
     svg.selectAll('g.sector')
@@ -53,21 +67,26 @@ async function loadHeatmap() {
         .call(g => {
             g.append('rect')
                 .attr('width', d => Math.max(0, d.x1 - d.x0))
-                .attr('height', d => Math.max(0, d.y1 - d.y0))
-                .attr('fill', 'none')
-                .attr('stroke', '#f1c40f')
-                .attr('stroke-width', 1.5);
+                .attr('height', 16)
+                .attr('fill', '#04080d');
+
+            g.append('rect')
+                .attr('width', d => Math.max(0, d.x1 - d.x0))
+                .attr('height', 1)
+                .attr('y', 16)
+                .attr('fill', 'rgba(0, 229, 255, 0.4)');
 
             g.append('text')
                 .attr('x', 4)
-                .attr('y', 13)
-                .attr('fill', '#f1c40f')
+                .attr('y', 12)
+                .attr('fill', '#00e5ff')
                 .attr('font-size', '12px')
-                .attr('font-weight', 'bold')
+                .attr('font-weight', '700')
+                .attr('letter-spacing', '0.5px')
                 .text(d => d.data.name.toUpperCase());
         });
 
-    // --- 第二層：Industry 外框 + 標籤（仿 Finviz 小分類字樣）---
+    // --- 第二層：Industry 標籤（小色塊，不另外畫外框）---
     const industryNodes = root.descendants().filter(d => d.depth === 2);
 
     svg.selectAll('g.industry')
@@ -77,25 +96,23 @@ async function loadHeatmap() {
         .style('pointer-events', 'none')
         .attr('transform', d => `translate(${d.x0},${d.y0})`)
         .call(g => {
-            g.append('rect')
-                .attr('width', d => Math.max(0, d.x1 - d.x0))
-                .attr('height', d => Math.max(0, d.y1 - d.y0))
-                .attr('fill', 'none')
-                .attr('stroke', '#bdc3c7')
-                .attr('stroke-width', 0.75)
-                .attr('stroke-opacity', 0.6);
+            // 格子太小（容不下文字）就不放標籤，避免擠成一團
+            const labeled = g.filter(d => (d.x1 - d.x0) >= 50 && (d.y1 - d.y0) >= 28);
 
-            // 格子太小（容不下文字）就不放 industry 標籤，避免擠成一團
-            g.filter(d => (d.x1 - d.x0) >= 50 && (d.y1 - d.y0) >= 28)
-                .append('text')
+            labeled.append('rect')
+                .attr('width', d => Math.max(0, d.x1 - d.x0))
+                .attr('height', 13)
+                .attr('fill', '#0c1117');
+
+            labeled.append('text')
                 .attr('x', 3)
                 .attr('y', 10)
-                .attr('fill', '#dfe6e9')
+                .attr('fill', '#7fb3c7')
                 .attr('font-size', '9px')
                 .text(d => d.data.name.toUpperCase());
         });
 
-    // --- 第三層：個股格子（沿用先前的上色 + 文字防溢出邏輯）---
+    // --- 第三層：個股格子（連續色階上色 + 文字防溢出）---
     const cells = svg.selectAll('g.stock')
         .data(root.leaves())
         .enter().append('g')
@@ -110,16 +127,9 @@ async function loadHeatmap() {
     cells.append('rect')
         .attr('width', d => Math.max(0, d.x1 - d.x0))
         .attr('height', d => Math.max(0, d.y1 - d.y0))
-        .attr('fill', d => {
-            const pct = d.data.changePct || 0;
-            if (pct > 2) return '#1a9e5c';      // 大漲 → 深綠
-            if (pct > 0) return '#2ecc71';       // 小漲 → 淺綠
-            if (pct < -2) return '#c0392b';      // 大跌 → 深紅
-            if (pct < 0) return '#e74c3c';       // 小跌 → 淺紅
-            return '#7f8c8d';                     // 平盤 → 灰色
-        })
-        .attr('stroke', '#1c1c1c')
-        .attr('stroke-width', 0.5);
+        .attr('fill', d => (d.data.changePct == null ? '#3a3f44' : colorScale(d.data.changePct)))
+        .attr('stroke', '#04080d')
+        .attr('stroke-width', 0.6);
 
     // 用 clipPath 把文字限制在自己的格子範圍內，避免格子太小時文字溢出、
     // 跟隔壁格子的文字疊在一起
@@ -136,9 +146,9 @@ async function loadHeatmap() {
         .attr('x', d => (d.x1 - d.x0) / 2)
         .attr('y', d => (d.y1 - d.y0) / 2 - 6)
         .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
+        .attr('fill', '#f4f8fa')
         .attr('font-size', '12px')
-        .attr('font-weight', 'bold')
+        .attr('font-weight', '600')
         .text(d => d.data.name);
 
     // 漲跌幅：格子要更大一點（兩行文字需要更多高度）才顯示
@@ -148,12 +158,18 @@ async function loadHeatmap() {
         .attr('x', d => (d.x1 - d.x0) / 2)
         .attr('y', d => (d.y1 - d.y0) / 2 + 10)
         .attr('text-anchor', 'middle')
-        .attr('fill', 'white')
+        .attr('fill', '#f4f8fa')
         .attr('font-size', '10px')
         .text(d => {
             const pct = d.data.changePct;
             return pct !== null ? `${pct > 0 ? '+' : ''}${pct?.toFixed(2)}%` : '';
         });
+
+    // 更新右上角「最後更新時間」字樣
+    const statusEl = document.getElementById('last-updated');
+    if (statusEl) {
+        statusEl.textContent = new Date().toLocaleTimeString();
+    }
 }
 
 // 初次載入

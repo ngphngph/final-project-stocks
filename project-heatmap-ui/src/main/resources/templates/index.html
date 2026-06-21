@@ -3,10 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <title>Stock Heatmap</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/heatmap.css}">
 </head>
 <body>
-    <h1>📊 S&P 500 Stock Heatmap</h1>
+    <header id="app-header">
+        <h1>S&amp;P 500 STOCK HEATMAP</h1>
+        <div id="status-line">
+            <span class="status-dot"></span>
+            <span>LIVE</span>
+            <span id="last-updated">--:--:--</span>
+        </div>
+    </header>
     <div id="heatmap-container"></div>
 
     <!-- 引入 D3.js -->
