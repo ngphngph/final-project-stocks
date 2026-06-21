@@ -23,10 +23,13 @@ public class RedisConfig {
                         .fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair
                         .fromSerializer(GenericJacksonJsonRedisSerializer.builder().build()))
-                .entryTtl(Duration.ofMinutes(30));  // 30分鐘失效
+                .entryTtl(Duration.ofMinutes(30));  // 30分鐘失效（stock-detail 等預設快取）
 
         return RedisCacheManager.builder(factory)
                 .cacheDefaults(config)
+                // heatmap-data 現在改成讀取 LiveQuoteService 背景持續更新的報價快取，
+                // 計算成本低，TTL 縮短為 1 分鐘，讓即時報價能更快反映在前端
+                .withCacheConfiguration("heatmap-data", config.entryTtl(Duration.ofMinutes(1)))
                 .build();
     }
 }

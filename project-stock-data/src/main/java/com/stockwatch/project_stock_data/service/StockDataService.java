@@ -10,13 +10,10 @@ import com.stockwatch.project_stock_data.repository.StockProfileRepository;
 import com.stockwatch.project_stock_data.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -26,10 +23,7 @@ public class StockDataService {
     private final StockProfileRepository stockProfileRepository;
     private final StockOhlcRepository stockOhlcRepository;
     private final StockRepository stockRepository;
-    private final WebClient webClient;
-
-    @Value("${data-provider.base-url}")
-    private String dataProviderBaseUrl;
+    private final LiveQuoteService liveQuoteService;
 
     @Cacheable(value = "heatmap-data")
     public List<HeatmapItemDTO> getHeatmapData() {
@@ -72,36 +66,15 @@ public class StockDataService {
         return dto;
     }
 
-    // 呼叫 project-data-provider 取得即時報價（current price / change / change%），
-    // 並填入 HeatmapItemDTO，讓 D3 Treemap 能依漲跌幅上色。
-    @SuppressWarnings("unchecked")
+    // 不再同步呼叫 Finnhub，改成讀取 LiveQuoteService 背景排程持續更新好的快取，
+    // 避免 503 支股票同時打 Finnhub 觸發 429 限速。
     private void enrichWithLiveQuote(HeatmapItemDTO dto) {
-        try {
-            Map<String, Object> quote = webClient.get()
-                    .uri(dataProviderBaseUrl + "/provider/quote/{symbol}", dto.getSymbol())
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-
-            if (quote != null) {
-                // 注意：StockQuoteDTO 欄位上有 @JsonProperty("c"/"d"/"dp")，
-                // Jackson 序列化輸出時會用這些短 key（沿用 Finnhub 原始格式），
-                // 不是 Java 欄位名稱 currentPrice/change/changePercent。
-                dto.setPrice(toDouble(quote.get("c")));
-                dto.setMarketPriceChg(toDouble(quote.get("d")));
-                dto.setMarketPriceChgPct(toDouble(quote.get("dp")));
-            }
-        } catch (Exception e) {
-            // 暫時加上錯誤 log 以診斷為何 price 一直是 null
-            log.warn("enrichWithLiveQuote failed for symbol={}, url={}, error={}: {}",
-                    dto.getSymbol(), dataProviderBaseUrl, e.getClass().getSimpleName(), e.getMessage());
+        LiveQuoteService.Quote quote = liveQuoteService.getQuote(dto.getSymbol());
+        if (quote != null) {
+            dto.setPrice(quote.price());
+            dto.setMarketPriceChg(quote.change());
+            dto.setMarketPriceChgPct(quote.changePct());
         }
-    }
-
-    private Double toDouble(Object value) {
-        if (value == null) return null;
-        if (value instanceof Number n) return n.doubleValue();
-        return null;
     }
 
     private StockDetailDTO.OhlcDTO toOhlcDTO(StockOhlcData data) {
