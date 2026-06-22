@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Heatmap</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/heatmap.css">
+</head>
+<body>
+    <header id="app-header">
+        <h1>S&amp;P 500 STOCK HEATMAP</h1>
+        <div id="status-line">
+            <span class="status-dot"></span>
+            <span>LIVE</span>
+            <span id="last-updated">--:--:--</span>
+        </div>
+    </header>
+    <div id="heatmap-container"></div>
+
+    <!-- 引入 D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- 後端 API 網址設定 -->
+    <script src="/js/config.js"></script>
+    <!-- 熱圖渲染邏輯 -->
+    <script src="/js/heatmap.js"></script>
+</body>
+</html>
