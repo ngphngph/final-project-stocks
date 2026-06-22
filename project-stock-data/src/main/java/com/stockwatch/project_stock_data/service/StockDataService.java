@@ -3,11 +3,15 @@ package com.stockwatch.project_stock_data.service;
 import com.stockwatch.project_stock_data.dto.HeatmapItemDTO;
 import com.stockwatch.project_stock_data.dto.StockDetailDTO;
 import com.stockwatch.project_stock_data.entity.Stock;
+import com.stockwatch.project_stock_data.entity.StockEarningsEvent;
 import com.stockwatch.project_stock_data.entity.StockOhlcData;
 import com.stockwatch.project_stock_data.entity.StockProfile;
+import com.stockwatch.project_stock_data.entity.StockSplitEvent;
+import com.stockwatch.project_stock_data.repository.StockEarningsEventRepository;
 import com.stockwatch.project_stock_data.repository.StockOhlcRepository;
 import com.stockwatch.project_stock_data.repository.StockProfileRepository;
 import com.stockwatch.project_stock_data.repository.StockRepository;
+import com.stockwatch.project_stock_data.repository.StockSplitEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -24,6 +28,8 @@ public class StockDataService {
     private final StockProfileRepository stockProfileRepository;
     private final StockOhlcRepository stockOhlcRepository;
     private final StockRepository stockRepository;
+    private final StockEarningsEventRepository stockEarningsEventRepository;
+    private final StockSplitEventRepository stockSplitEventRepository;
     private final LiveQuoteService liveQuoteService;
 
     @Cacheable(value = "heatmap-data")
@@ -71,6 +77,15 @@ public class StockDataService {
             dto.setLogo(profile.getLogo());
         }
         dto.setOhlcs(ohlcList.stream().map(this::toOhlcDTO).toList());
+
+        List<StockEarningsEvent> earningsList =
+                stockEarningsEventRepository.findByStockIdOrderByReportDateAsc(stock.getId());
+        dto.setEarningsEvents(earningsList.stream().map(this::toEarningsEventDTO).toList());
+
+        List<StockSplitEvent> splitList =
+                stockSplitEventRepository.findByStockIdOrderBySplitDateAsc(stock.getId());
+        dto.setSplitEvents(splitList.stream().map(this::toSplitEventDTO).toList());
+
         return dto;
     }
 
@@ -93,6 +108,24 @@ public class StockDataService {
         dto.setLow(data.getLow() != null ? data.getLow().doubleValue() : null);
         dto.setClose(data.getClose() != null ? data.getClose().doubleValue() : null);
         dto.setVolume(data.getVolume());
+        return dto;
+    }
+
+    private StockDetailDTO.EarningsEventDTO toEarningsEventDTO(StockEarningsEvent event) {
+        StockDetailDTO.EarningsEventDTO dto = new StockDetailDTO.EarningsEventDTO();
+        dto.setDate(event.getReportDate().toString());
+        dto.setEpsActual(event.getEpsActual() != null ? event.getEpsActual().doubleValue() : null);
+        dto.setEpsEstimate(event.getEpsEstimate() != null ? event.getEpsEstimate().doubleValue() : null);
+        dto.setQuarter(event.getQuarter());
+        dto.setYear(event.getYear());
+        return dto;
+    }
+
+    private StockDetailDTO.SplitEventDTO toSplitEventDTO(StockSplitEvent event) {
+        StockDetailDTO.SplitEventDTO dto = new StockDetailDTO.SplitEventDTO();
+        dto.setDate(event.getSplitDate().toString());
+        dto.setFromFactor(event.getFromFactor() != null ? event.getFromFactor().doubleValue() : null);
+        dto.setToFactor(event.getToFactor() != null ? event.getToFactor().doubleValue() : null);
         return dto;
     }
 

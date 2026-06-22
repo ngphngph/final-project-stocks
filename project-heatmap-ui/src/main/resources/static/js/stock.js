@@ -19,14 +19,20 @@ async function loadStockDetail() {
         return;
     }
 
-    drawCandlestick(ohlcs);
+    drawCandlestick(ohlcs, detail.earningsEvents || [], detail.splitEvents || []);
 }
 
-function drawCandlestick(data) {
+function drawCandlestick(data, earningsEvents, splitEvents) {
     const container = document.getElementById('chart-container');
     const width = container.clientWidth || window.innerWidth - 40;
     const height = container.clientHeight || 500;
     const margin = { top: 20, right: 30, bottom: 30, left: 50 };
+
+    // 在 K 線下方、x 軸線上方留一條 18px 的「事件標記」專用走道，
+    // 放財報（E）、股票分割（S）標記，跟 K 棒分開，避免互相遮擋。
+    const EVENTS_LANE_HEIGHT = 18;
+    const chartBottom = height - margin.bottom;
+    const eventsRowY = chartBottom - EVENTS_LANE_HEIGHT / 2;
 
     const parsedData = data.map(d => ({
         date: new Date(d.date),
@@ -43,7 +49,22 @@ function drawCandlestick(data) {
 
     const y = d3.scaleLinear()
         .domain([d3.min(parsedData, d => d.low) * 0.98, d3.max(parsedData, d => d.high) * 1.02])
-        .range([height - margin.bottom, margin.top]);
+        .range([chartBottom - EVENTS_LANE_HEIGHT, margin.top]);
+
+    // 找出跟某個日期最接近的那根 K 棒索引（財報/分割日期可能落在非交易日）
+    function findNearestIndex(dateStr) {
+        const target = new Date(dateStr).getTime();
+        let bestIndex = 0;
+        let bestDiff = Infinity;
+        parsedData.forEach((d, i) => {
+            const diff = Math.abs(d.date.getTime() - target);
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                bestIndex = i;
+            }
+        });
+        return bestIndex;
+    }
 
     const svg = d3.select('#chart-container')
         .append('svg')
@@ -80,6 +101,70 @@ function drawCandlestick(data) {
         .attr('width', x.bandwidth())
         .attr('height', d => Math.max(1, Math.abs(y(d.open) - y(d.close))))
         .attr('fill', d => d.close >= d.open ? '#2ecc71' : '#e74c3c');
+
+    // --- 事件標記：財報（E 方形）跟股票分割（S 圓形），畫在 K 線下方的專用走道上 ---
+    const eventsLayer = svg.append('g').attr('class', 'events-layer');
+
+    (earningsEvents || []).forEach(ev => {
+        if (!ev.date || parsedData.length === 0) return;
+        const idx = findNearestIndex(ev.date);
+        const cx = x(parsedData[idx].date) + x.bandwidth() / 2;
+
+        // 顏色依實際 EPS 跟預估 EPS 比較：優於預期＝綠、不如預期＝紅、缺資料＝中性藍
+        let fill = '#2dd4ff';
+        if (ev.epsActual != null && ev.epsEstimate != null) {
+            fill = ev.epsActual >= ev.epsEstimate ? '#2ecc71' : '#e74c3c';
+        }
+
+        const g = eventsLayer.append('g').attr('class', 'event-marker event-earnings');
+        g.append('rect')
+            .attr('x', cx - 7)
+            .attr('y', eventsRowY - 7)
+            .attr('width', 14)
+            .attr('height', 14)
+            .attr('rx', 3)
+            .attr('fill', '#13131f')
+            .attr('stroke', fill)
+            .attr('stroke-width', 1.5);
+        g.append('text')
+            .attr('x', cx)
+            .attr('y', eventsRowY + 3)
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '9px')
+            .attr('font-family', "'JetBrains Mono', monospace")
+            .attr('fill', fill)
+            .text('E');
+        g.append('title')
+            .text(`財報 Earnings ${ev.date}` +
+                (ev.epsActual != null ? `\nEPS 實際: ${ev.epsActual}` : '') +
+                (ev.epsEstimate != null ? `\nEPS 預估: ${ev.epsEstimate}` : ''));
+    });
+
+    (splitEvents || []).forEach(sp => {
+        if (!sp.date || parsedData.length === 0) return;
+        const idx = findNearestIndex(sp.date);
+        const cx = x(parsedData[idx].date) + x.bandwidth() / 2;
+        const ratio = (sp.fromFactor && sp.toFactor) ? `${sp.toFactor}-for-${sp.fromFactor}` : '';
+
+        const g = eventsLayer.append('g').attr('class', 'event-marker event-split');
+        g.append('circle')
+            .attr('cx', cx)
+            .attr('cy', eventsRowY)
+            .attr('r', 7)
+            .attr('fill', '#13131f')
+            .attr('stroke', '#a85bff')
+            .attr('stroke-width', 1.5);
+        g.append('text')
+            .attr('x', cx)
+            .attr('y', eventsRowY + 3)
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '9px')
+            .attr('font-family', "'JetBrains Mono', monospace")
+            .attr('fill', '#a85bff')
+            .text('S');
+        g.append('title')
+            .text(`股票分割 Split ${sp.date}` + (ratio ? `\n比例: ${ratio}` : ''));
+    });
 
     // --- 十字線（crosshair）：滑鼠移到圖上時，顯示對應的日期/價格 ---
     const crosshair = svg.append('g')
