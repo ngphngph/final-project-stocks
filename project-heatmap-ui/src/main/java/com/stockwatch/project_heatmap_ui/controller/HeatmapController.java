@@ -3,16 +3,17 @@ package com.stockwatch.project_heatmap_ui.controller;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+// 前端已經拆成獨立的靜態網站部署在 Vercel，這個 class 不再負責渲染網頁，
+// 只保留下面的 REST API 給 Vercel 前端（以及任何其他 client）呼叫。
 @Slf4j
-@Controller
+@Component
 @RequiredArgsConstructor
 public class HeatmapController {
 
@@ -20,20 +21,6 @@ public class HeatmapController {
 
     @Value("${stock-data.base-url}")
     private String stockDataBaseUrl;
-
-    // GET / → 返回 index.html（熱圖頁面）
-    @GetMapping("/")
-    public String index(Model model) {
-        // 伺服器端初次渲染，之後 JS setInterval 自動刷新
-        return "index";
-    }
-
-    // GET /stock/{stockId} → 返回 stock.html（K線圖頁面）
-    @GetMapping("/stock/{stockId}")
-    public String stockPage(@PathVariable Long stockId, Model model) {
-        model.addAttribute("stockId", stockId);
-        return "stock";
-    }
 
     // REST API → 給前端 JS 呼叫，取 heatmap 數據
     @RestController
