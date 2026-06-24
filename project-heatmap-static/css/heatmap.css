@@ -39,11 +39,10 @@ h1 {
     letter-spacing: 3px;
     color: #fff;
     text-shadow:
-        0 0 4px #fff,
-        0 0 11px #fff,
-        0 0 19px #00fff2,
-        0 0 40px #00fff2,
-        0 0 80px #00fff2;
+        0 0 2px #fff,
+        0 0 6px rgba(255, 255, 255, 0.6),
+        0 0 12px rgba(255, 43, 214, 0.7),
+        0 0 22px rgba(255, 43, 214, 0.4);
 }
 
 #status-line {
