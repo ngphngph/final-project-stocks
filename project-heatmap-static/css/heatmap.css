@@ -34,15 +34,16 @@ body::before {
 
 h1 {
     margin: 0;
-    font-family: 'Orbitron', sans-serif;
-    font-weight: 900;
+    font-family: 'Audiowide', sans-serif;
     font-size: 22px;
-    letter-spacing: 2px;
-    color: #ff2bd6;
+    letter-spacing: 3px;
+    color: #fff;
     text-shadow:
-        2px 0 #00fff2,
-        -2px 0 #ff2bd6,
-        0 0 16px rgba(255, 43, 214, 0.6);
+        0 0 4px #fff,
+        0 0 11px #fff,
+        0 0 19px #00fff2,
+        0 0 40px #00fff2,
+        0 0 80px #00fff2;
 }
 
 #status-line {
