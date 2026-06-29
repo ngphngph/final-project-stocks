@@ -9,6 +9,14 @@ const colorScale = d3.scaleLinear()
     .range(['#ff2155', '#1a1626', '#0aff9d'])
     .clamp(true);
 
+function formatPct(pct) {
+    return pct !== null && pct !== undefined ? `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%` : '';
+}
+
+// svg 只建立一次，之後每次刷新只更新裡面的元素（顏色/文字/位置），
+// 不整個拆掉重建，這樣畫面才不會閃爍（twinkle）。
+let svg = null;
+
 async function loadHeatmap() {
     const response = await fetch(`${API_BASE}/api/heatmap`);
     const stocks = await response.json();
@@ -50,124 +58,185 @@ async function loadHeatmap() {
         .round(true)
         (root);
 
-    const svg = d3.select('#heatmap-container')
-        .append('svg')
-        .attr('width', width)
-        .attr('height', height)
-        .style('font-family', FONT_MONO);
+    // 第一次載入才建立 svg；之後的刷新沿用同一個 svg 元素
+    if (!svg) {
+        svg = d3.select('#heatmap-container')
+            .append('svg')
+            .style('font-family', FONT_MONO);
+    }
+    svg.attr('width', width).attr('height', height);
 
     // --- 第一層：Sector 標籤（頂部色塊 + 細霓虹底線，不另外畫外框）---
     const sectorNodes = root.descendants().filter(d => d.depth === 1);
 
     svg.selectAll('g.sector')
-        .data(sectorNodes)
-        .enter().append('g')
-        .attr('class', 'sector')
-        .style('pointer-events', 'none')
-        .attr('transform', d => `translate(${d.x0},${d.y0})`)
-        .call(g => {
-            g.append('rect')
-                .attr('width', d => Math.max(0, d.x1 - d.x0))
-                .attr('height', 16)
-                .attr('fill', '#13001a');
+        .data(sectorNodes, d => d.data.name)
+        .join(
+            enter => {
+                const g = enter.append('g')
+                    .attr('class', 'sector')
+                    .style('pointer-events', 'none')
+                    .attr('transform', d => `translate(${d.x0},${d.y0})`);
 
-            g.append('rect')
-                .attr('width', d => Math.max(0, d.x1 - d.x0))
-                .attr('height', 1.5)
-                .attr('y', 16)
-                .attr('fill', '#ff2bd6')
-                .style('filter', 'drop-shadow(0 0 4px rgba(255, 43, 214, 0.85))');
+                g.append('rect')
+                    .attr('class', 'sector-bg')
+                    .attr('width', d => Math.max(0, d.x1 - d.x0))
+                    .attr('height', 16)
+                    .attr('fill', '#13001a');
 
-            g.append('text')
-                .attr('x', 4)
-                .attr('y', 12)
-                .attr('fill', '#ff6be8')
-                .attr('font-size', '12px')
-                .attr('font-weight', '700')
-                .attr('letter-spacing', '0.5px')
-                .style('filter', 'drop-shadow(0 0 3px rgba(255, 43, 214, 0.9))')
-                .text(d => d.data.name.toUpperCase());
-        });
+                g.append('rect')
+                    .attr('class', 'sector-underline')
+                    .attr('width', d => Math.max(0, d.x1 - d.x0))
+                    .attr('height', 1.5)
+                    .attr('y', 16)
+                    .attr('fill', '#ff2bd6')
+                    .style('filter', 'drop-shadow(0 0 4px rgba(255, 43, 214, 0.85))');
+
+                g.append('text')
+                    .attr('x', 4)
+                    .attr('y', 12)
+                    .attr('fill', '#ff6be8')
+                    .attr('font-size', '12px')
+                    .attr('font-weight', '700')
+                    .attr('letter-spacing', '0.5px')
+                    .style('filter', 'drop-shadow(0 0 3px rgba(255, 43, 214, 0.9))')
+                    .text(d => d.data.name.toUpperCase());
+
+                return g;
+            },
+            update => {
+                update.attr('transform', d => `translate(${d.x0},${d.y0})`);
+                update.select('rect.sector-bg').attr('width', d => Math.max(0, d.x1 - d.x0));
+                update.select('rect.sector-underline').attr('width', d => Math.max(0, d.x1 - d.x0));
+                update.select('text').text(d => d.data.name.toUpperCase());
+                return update;
+            },
+            exit => exit.remove()
+        );
 
     // --- 第二層：Industry 標籤（小色塊，不另外畫外框）---
     const industryNodes = root.descendants().filter(d => d.depth === 2);
+    const industryKey = d => `${d.parent.data.name}|${d.data.name}`;
 
     svg.selectAll('g.industry')
-        .data(industryNodes)
-        .enter().append('g')
-        .attr('class', 'industry')
-        .style('pointer-events', 'none')
-        .attr('transform', d => `translate(${d.x0},${d.y0})`)
-        .call(g => {
-            // 格子太小（容不下文字）就不放標籤，避免擠成一團
-            const labeled = g.filter(d => (d.x1 - d.x0) >= 50 && (d.y1 - d.y0) >= 28);
+        .data(industryNodes, industryKey)
+        .join(
+            enter => {
+                const g = enter.append('g')
+                    .attr('class', 'industry')
+                    .style('pointer-events', 'none')
+                    .attr('transform', d => `translate(${d.x0},${d.y0})`);
 
-            labeled.append('rect')
-                .attr('width', d => Math.max(0, d.x1 - d.x0))
-                .attr('height', 13)
-                .attr('fill', '#001a1a');
+                // 格子太小（容不下文字）就不放標籤，避免擠成一團
+                const labeled = g.filter(d => (d.x1 - d.x0) >= 50 && (d.y1 - d.y0) >= 28);
 
-            labeled.append('text')
-                .attr('x', 3)
-                .attr('y', 10)
-                .attr('fill', '#5df5ec')
-                .attr('font-size', '9px')
-                .style('filter', 'drop-shadow(0 0 2px rgba(0, 255, 242, 0.7))')
-                .text(d => d.data.name.toUpperCase());
-        });
+                labeled.append('rect')
+                    .attr('class', 'industry-bg')
+                    .attr('width', d => Math.max(0, d.x1 - d.x0))
+                    .attr('height', 13)
+                    .attr('fill', '#001a1a');
+
+                labeled.append('text')
+                    .attr('x', 3)
+                    .attr('y', 10)
+                    .attr('fill', '#5df5ec')
+                    .attr('font-size', '9px')
+                    .style('filter', 'drop-shadow(0 0 2px rgba(0, 255, 242, 0.7))')
+                    .text(d => d.data.name.toUpperCase());
+
+                return g;
+            },
+            update => {
+                update.attr('transform', d => `translate(${d.x0},${d.y0})`);
+                update.select('rect.industry-bg').attr('width', d => Math.max(0, d.x1 - d.x0));
+                update.select('text').text(d => d.data.name.toUpperCase());
+                return update;
+            },
+            exit => exit.remove()
+        );
 
     // --- 第三層：個股格子（連續色階上色 + 文字防溢出）---
-    const cells = svg.selectAll('g.stock')
-        .data(root.leaves())
-        .enter().append('g')
-        .attr('class', 'stock')
-        .attr('transform', d => `translate(${d.x0},${d.y0})`)
-        .style('cursor', 'pointer')
-        .on('click', (event, d) => {
-            // 點擊跳轉到 K線圖頁面（靜態版用 query string 帶 stockId）
-            window.location.href = `stock.html?id=${d.data.stockId}`;
-        });
+    svg.selectAll('g.stock')
+        .data(root.leaves(), d => d.data.stockId)
+        .join(
+            enter => {
+                const g = enter.append('g')
+                    .attr('class', 'stock')
+                    .attr('transform', d => `translate(${d.x0},${d.y0})`)
+                    .style('cursor', 'pointer')
+                    .on('click', (event, d) => {
+                        // 點擊跳轉到 K線圖頁面（靜態版用 query string 帶 stockId）
+                        window.location.href = `stock.html?id=${d.data.stockId}`;
+                    });
 
-    cells.append('rect')
-        .attr('width', d => Math.max(0, d.x1 - d.x0))
-        .attr('height', d => Math.max(0, d.y1 - d.y0))
-        .attr('fill', d => (d.data.changePct == null ? '#1a1626' : colorScale(d.data.changePct)))
-        .attr('stroke', '#0a0014')
-        .attr('stroke-width', 0.6);
+                g.append('rect')
+                    .attr('class', 'cell-bg')
+                    .attr('width', d => Math.max(0, d.x1 - d.x0))
+                    .attr('height', d => Math.max(0, d.y1 - d.y0))
+                    .attr('fill', d => (d.data.changePct == null ? '#1a1626' : colorScale(d.data.changePct)))
+                    .attr('stroke', '#0a0014')
+                    .attr('stroke-width', 0.6);
 
-    // 用 clipPath 把文字限制在自己的格子範圍內，避免格子太小時文字溢出、
-    // 跟隔壁格子的文字疊在一起
-    cells.append('clipPath')
-        .attr('id', d => `clip-${d.data.stockId}`)
-        .append('rect')
-        .attr('width', d => Math.max(0, d.x1 - d.x0))
-        .attr('height', d => Math.max(0, d.y1 - d.y0));
+                // 用 clipPath 把文字限制在自己的格子範圍內，避免格子太小時文字溢出、
+                // 跟隔壁格子的文字疊在一起
+                g.append('clipPath')
+                    .attr('id', d => `clip-${d.data.stockId}`)
+                    .append('rect')
+                    .attr('class', 'clip-rect')
+                    .attr('width', d => Math.max(0, d.x1 - d.x0))
+                    .attr('height', d => Math.max(0, d.y1 - d.y0));
 
-    // 股票代號：格子太小（小於 30x22）就不顯示，避免擠成一團
-    cells.filter(d => (d.x1 - d.x0) >= 30 && (d.y1 - d.y0) >= 22)
-        .append('text')
-        .attr('clip-path', d => `url(#clip-${d.data.stockId})`)
-        .attr('x', d => (d.x1 - d.x0) / 2)
-        .attr('y', d => (d.y1 - d.y0) / 2 - 6)
-        .attr('text-anchor', 'middle')
-        .attr('fill', '#f4f8fa')
-        .attr('font-size', '12px')
-        .attr('font-weight', '600')
-        .text(d => d.data.name);
+                // 股票代號：格子太小（小於 30x22）就不顯示，避免擠成一團
+                g.filter(d => (d.x1 - d.x0) >= 30 && (d.y1 - d.y0) >= 22)
+                    .append('text')
+                    .attr('class', 'cell-symbol')
+                    .attr('clip-path', d => `url(#clip-${d.data.stockId})`)
+                    .attr('x', d => (d.x1 - d.x0) / 2)
+                    .attr('y', d => (d.y1 - d.y0) / 2 - 6)
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', '#f4f8fa')
+                    .attr('font-size', '12px')
+                    .attr('font-weight', '600')
+                    .text(d => d.data.name);
 
-    // 漲跌幅：格子要更大一點（兩行文字需要更多高度）才顯示
-    cells.filter(d => (d.x1 - d.x0) >= 36 && (d.y1 - d.y0) >= 34)
-        .append('text')
-        .attr('clip-path', d => `url(#clip-${d.data.stockId})`)
-        .attr('x', d => (d.x1 - d.x0) / 2)
-        .attr('y', d => (d.y1 - d.y0) / 2 + 10)
-        .attr('text-anchor', 'middle')
-        .attr('fill', '#f4f8fa')
-        .attr('font-size', '10px')
-        .text(d => {
-            const pct = d.data.changePct;
-            return pct !== null ? `${pct > 0 ? '+' : ''}${pct?.toFixed(2)}%` : '';
-        });
+                // 漲跌幅：格子要更大一點（兩行文字需要更多高度）才顯示
+                g.filter(d => (d.x1 - d.x0) >= 36 && (d.y1 - d.y0) >= 34)
+                    .append('text')
+                    .attr('class', 'cell-pct')
+                    .attr('clip-path', d => `url(#clip-${d.data.stockId})`)
+                    .attr('x', d => (d.x1 - d.x0) / 2)
+                    .attr('y', d => (d.y1 - d.y0) / 2 + 10)
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', '#f4f8fa')
+                    .attr('font-size', '10px')
+                    .text(d => formatPct(d.data.changePct));
+
+                return g;
+            },
+            update => {
+                // 位置/大小理論上很少變（treemap 是按市值排版），但保留更新邏輯
+                // 以防股票名單或市值排序變動。
+                update.attr('transform', d => `translate(${d.x0},${d.y0})`);
+
+                update.select('rect.cell-bg')
+                    .attr('width', d => Math.max(0, d.x1 - d.x0))
+                    .attr('height', d => Math.max(0, d.y1 - d.y0))
+                    .transition()
+                    .duration(600)
+                    .attr('fill', d => (d.data.changePct == null ? '#1a1626' : colorScale(d.data.changePct)));
+
+                update.select('clipPath rect.clip-rect')
+                    .attr('width', d => Math.max(0, d.x1 - d.x0))
+                    .attr('height', d => Math.max(0, d.y1 - d.y0));
+
+                // 只更新文字內容，不重建節點，所以不會閃爍
+                update.select('text.cell-symbol').text(d => d.data.name);
+                update.select('text.cell-pct').text(d => formatPct(d.data.changePct));
+
+                return update;
+            },
+            exit => exit.remove()
+        );
 
     // 更新右上角「最後更新時間」字樣
     const statusEl = document.getElementById('last-updated');
@@ -179,8 +248,5 @@ async function loadHeatmap() {
 // 初次載入
 loadHeatmap();
 
-// 每 30 秒自動刷新（setInterval）
-setInterval(() => {
-    d3.select('#heatmap-container svg').remove();
-    loadHeatmap();
-}, 30000);
+// 每 30 秒自動刷新（setInterval）——只更新資料，不重建整個 svg，避免畫面閃爍
+setInterval(loadHeatmap, 30000);
